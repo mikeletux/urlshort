@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 )
 
@@ -70,4 +71,79 @@ func sampleTestMux() *http.ServeMux {
 
 func sampleTestFallback(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello world!")
+}
+
+func Test_parseYAML(t *testing.T) {
+	testYaml := `
+    - path: /urlshort
+      url: https://github.com/gophercises/urlshort
+    - path: /urlshort-final
+      url: https://github.com/gophercises/urlshort/tree/solution
+    `
+
+	type args struct {
+		yml []byte
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []yamlFile
+		wantErr bool
+	}{
+		{
+			name: "Parse a sample yaml file",
+			args: args{
+				yml: []byte(testYaml),
+			},
+			want: []yamlFile{
+				{Path: "/urlshort", Url: "https://github.com/gophercises/urlshort"},
+				{Path: "/urlshort-final", Url: "https://github.com/gophercises/urlshort/tree/solution"},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseYAML(tt.args.yml)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseYAML() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parseYAML() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_buildMap(t *testing.T) {
+	type args struct {
+		parsedYaml []yamlFile
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]string
+	}{
+		{
+			name: "Transform correctly a slice into a map",
+			args: args{
+				parsedYaml: []yamlFile{
+					{Path: "/urlshort", Url: "https://github.com/gophercises/urlshort"},
+					{Path: "/urlshort-final", Url: "https://github.com/gophercises/urlshort/tree/solution"},
+				},
+			},
+			want: map[string]string{
+				"/urlshort":       "https://github.com/gophercises/urlshort",
+				"/urlshort-final": "https://github.com/gophercises/urlshort/tree/solution",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := buildMap(tt.args.parsedYaml); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("buildMap() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
