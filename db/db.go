@@ -4,4 +4,5 @@ package db
 type Database interface {
 	Insert(shortURL, longURL string) error
 	GetFullURL(shortURL string) (longURL string, err error)
+	Delete(shortURL string) error
 }

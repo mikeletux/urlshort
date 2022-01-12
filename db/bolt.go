@@ -56,6 +56,14 @@ func (d *BoltDB) GetFullURL(shortURL string) (longURL string, err error) {
 	return
 }
 
+func (d *BoltDB) Delete(shortURL string) error {
+	err := d.database.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(d.bucketName))
+		return b.Delete([]byte(shortURL))
+	})
+	return err
+}
+
 func (d *BoltDB) Close() error {
 	return d.database.Close()
 }

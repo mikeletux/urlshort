@@ -17,6 +17,12 @@ func TestBoltDB_Insert(t *testing.T) {
 		t.Fatalf("couldn't create database %s", err)
 	}
 
+	// Close the database
+	defer d.Close()
+
+	// Delete the test file
+	defer os.Remove(testFile)
+
 	type args struct {
 		shortURL string
 		longURL  string
@@ -42,12 +48,6 @@ func TestBoltDB_Insert(t *testing.T) {
 			}
 		})
 	}
-
-	// Close the database
-	d.Close()
-
-	// Delete the test file
-	os.Remove(testFile)
 }
 
 func TestBoltDB_GetFullURL(t *testing.T) {
@@ -56,6 +56,12 @@ func TestBoltDB_GetFullURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("couldn't create database %s", err)
 	}
+
+	// Close the database
+	defer d.Close()
+
+	// Delete the test file
+	defer os.Remove(testFile)
 
 	// Add some records for testing
 	d.Insert("/centos", "https://www.centos.org")
@@ -107,11 +113,68 @@ func TestBoltDB_GetFullURL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBoltDB_Delete(t *testing.T) {
+	// Create a test database
+	d, err := NewBoltDB(testFile, 0600, testBucket)
+	if err != nil {
+		t.Fatalf("couldn't create database %s", err)
+	}
 
 	// Close the database
-	d.Close()
+	defer d.Close()
 
 	// Delete the test file
-	os.Remove(testFile)
+	defer os.Remove(testFile)
 
+	// Add some records to remove
+	d.Insert("/centos", "https://www.centos.org")
+	d.Insert("/redhat", "https://www.redhat.com/es")
+
+	type args struct {
+		shortURL string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Remove /centos",
+			args: args{
+				shortURL: "/centos",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Remove /redhat",
+			args: args{
+				shortURL: "/redhat",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Remove something that doesn't exist",
+			args: args{
+				shortURL: "/imadethisup",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d.Delete(tt.args.shortURL)
+
+			// Check if record is still on the database
+			got, err := d.GetFullURL(tt.args.shortURL)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("want %t got %t", (err != nil), tt.wantErr)
+			}
+
+			if len(got) > 0 {
+				t.Errorf("longURL should be empty but retrieved %s", got)
+			}
+		})
+	}
 }
