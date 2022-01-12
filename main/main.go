@@ -3,8 +3,15 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 
-	"github.com/gophercises/urlshort"
+	"github.com/gophercises/urlshort/db"
+	"github.com/gophercises/urlshort/urlshort"
+)
+
+const (
+	boltFile   string = "./bolt.db"
+	boltBucket string = "url"
 )
 
 func main() {
@@ -27,11 +34,26 @@ func main() {
     `
 	yamlHandler, err := urlshort.YAMLHandler([]byte(yaml), mapHandler)
 	if err != nil {
-		panic(err)
+		fmt.Printf("error when parsing the yaml file - %s", err)
+		os.Exit(1)
 	}
+
+	// Create BoltDB
+	boltDB, err := db.NewBoltDB(boltFile, 0600, boltBucket)
+	if err != nil {
+		fmt.Printf("error when creating/reading the bold db - %s", err)
+		os.Exit(1)
+	}
+
+	// Add some sample records
+	boltDB.Insert("/google", "https://www.google.es")
+	boltDB.Insert("/amazon", "https://www.amazon.es")
+
+	// Create DBHandler
+	dbHandler := urlshort.DBHandler(boltDB, yamlHandler)
+
 	fmt.Println("Starting the server on :8080")
-	http.ListenAndServe(":8080", yamlHandler)
-	// http.ListenAndServe(":8080", mapHandler)
+	http.ListenAndServe(":8080", dbHandler)
 }
 
 func defaultMux() *http.ServeMux {

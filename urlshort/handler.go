@@ -79,5 +79,15 @@ func buildMap(parsedYaml []yamlFile) map[string]string {
 
 // DBHandler
 func DBHandler(database db.Database, fallback http.Handler) http.HandlerFunc {
-	return nil
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		redirectURL, _ := database.GetFullURL(r.RequestURI)
+		if len(redirectURL) == 0 {
+			fallback.ServeHTTP(w, r)
+			return
+		}
+
+		http.Redirect(w, r, redirectURL, http.StatusMovedPermanently)
+	}
+
 }
